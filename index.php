@@ -14,22 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 /**
- * Run the code checker from the web.
  *
- * @package    local_autocomplete
+ * @package    local_filedemo
  * @copyright  2019 Marcus Green
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 global $CFG, $PAGE;
 require_once(__DIR__ . '/../../config.php');
 require_once($CFG->libdir . '/formslib.php');
-//require_login();
 
 $PAGE->set_context(context_system::instance());
 $PAGE->set_url('/local/filedemo.php');
 $filename = '';
 class local_filedemo_form extends moodleform {
     protected function definition() {
+        global $DB,$USER;
         $mform = $this->_form;
 
         $mform->addElement('text','demotext');
@@ -37,7 +36,7 @@ class local_filedemo_form extends moodleform {
         //https://docs.moodle.org/dev/Using_the_File_API_in_Moodle_forms
         // moodle_url::make_pluginfile_url(context_system::instance()->id, 'logo_filedemo', 'filedemo', $filepath,
         // theme_get_revision(), $logo);
-        
+
         //$context = context_system::instance();
         //$fs = get_file_storage();
 
@@ -58,17 +57,51 @@ class local_filedemo_form extends moodleform {
             $file->get_component(), $file->get_filearea(), $file->get_itemid(), $file->get_filepath(), $file->get_filename());
             $fileurl= $url->out();
         }
-   
+
+
+$sql = "SELECT id,contextid,component,filearea,itemid,filename
+        FROM {files}
+        WHERE COMPONENT='user'
+        AND userid=:userid
+        AND filearea = 'draft'
+        UNION
+        SELECT id,contextid,component,filearea,itemid,filename
+        FROM {files}
+        WHERE component = 'local_filedemo'
+        AND filearea = 'file_demo'
+        ";
+
+
+        $files = $DB->get_records_sql($sql,['userid'=>$USER->id]);
+
+        $filetable ='<table border =1>';
+        $filetable .= '<th>id</th><th>contextid</th><th>component</th><th>filearea</th><th>itemid</th><th>filename</th>';
+        foreach($files as $row){
+            $filetable .= '<tr>';
+            foreach($row as $cell){
+                $filetable .= '<td>' . $cell . '</td>';
+            }
+            $filetable .= '</td>';
+        }
+        $filetable .= '</table>';
+        $mform->addElement('static', 'filetable', 'filetable', $filetable);
         $mform->addElement('static', 'file_display', 'Url',$fileurl);
         $image = '<img src="'.$fileurl.'" height="128" width="128"></img>';
         $mform->addElement('static', 'file_display', 'Image', $image);
 
         $draftitemid = 0;
         $context=context_system::instance();
-        file_prepare_draft_area($draftitemid, $context->id, 'local_filedemo', 'file_demo', 0);
+
+        $sql = "SELECT max(itemid) maxitemid FROM {files}
+        WHERE component = 'local_filedemo'
+        AND filearea = 'file_demo'
+        ";
+        $maxitem = $DB->get_field_sql($sql);
+        ++$maxitem;
+        file_prepare_draft_area($draftitemid, $context->id, 'local_filedemo', 'file_demo', $maxitem);
         $fileparam = ['maxfiles' => 1];
         $mform->addElement('filemanager', 'file_demo', 'Add a file', null, $fileparam);
-        $this->add_action_buttons(true, 'Go');
+        $this->add_action_buttons(true);
     }
 }
 $mform = new local_filedemo_form();
@@ -81,13 +114,18 @@ if($data =$mform->get_data()){
     $context=context_system::instance();
     $draftitemid = file_get_submitted_draft_itemid('file_demo');
 
+    $sql = "SELECT max(itemid) maxitemid FROM {files}
+    WHERE component = 'local_filedemo'
+    AND filearea = 'file_demo'
+    ";
+    $maxitem = $DB->get_field_sql($sql);
+    ++$maxitem;
         file_save_draft_area_files(
             $draftitemid,
             $context->id,
             'local_filedemo',
             'file_demo',
-            0,
+            $maxitem,
             ['subdirs' => 0, 'maxbytes' => 0, 'maxfiles' => 1]
         );
-echo('1');
 }

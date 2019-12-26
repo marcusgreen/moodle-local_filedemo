@@ -19,10 +19,10 @@
  *
  * @package     local_filedemo
  * @category    string
- * @copyright   2019 Your Name <you@example.com>
+ * @copyright   2019 Marcus Green
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['pluginname'] = 'filedemo';
+$string['pluginname'] = 'Filedemo';
