@@ -28,11 +28,27 @@ $PAGE->set_url('/local/filedemo.php');
 $filename = '';
 class local_filedemo_form extends moodleform {
     protected function definition() {
-        global $DB,$USER;
+        global $DB, $USER;
         $mform = $this->_form;
 
-        $mform->addElement('text','demotext');
-        $mform->setType('demotext',PARAM_RAW);
+
+        $mform->addElement('text', 'demotext');
+        $mform->setType('demotext', PARAM_RAW);
+        $sql = 'SELECT distinct component FROM {files}
+        where userid =:userid';
+        $components = $DB->get_fieldset_sql($sql, ['userid' => $USER->id]);
+        array_unshift($components, 'Select item');
+        // print_r($components);
+        // exit();
+
+        // $components = $DB->get_fieldset_sql($sql, ['userid' => $USER->id]);
+        // // print_r($components);
+        // // exit();
+        $label = 'Components owned by current user';
+        // $mform->addElement('select', 'components', $components, $components);
+
+        $mform->addElement('select', 'components', $label, $components);
+
         //https://docs.moodle.org/dev/Using_the_File_API_in_Moodle_forms
         // moodle_url::make_pluginfile_url(context_system::instance()->id, 'logo_filedemo', 'filedemo', $filepath,
         // theme_get_revision(), $logo);
@@ -40,26 +56,25 @@ class local_filedemo_form extends moodleform {
         //$context = context_system::instance();
         //$fs = get_file_storage();
 
-       // $files = $fs->get_area_files($context->id, 'local_filedemo', 'filedemo',0);
+        // $files = $fs->get_area_files($context->id, 'local_filedemo', 'filedemo',0);
 
         //$urlimage = moodle_url::make_pluginfile_url(context_system::instance()->id, 'local_filedemo', 'filedemo', 1, '/',reset($files)->get_filename())->out(false);
         //file_prepare_draft_area
 
         $draftitemid = 0;
-        $context=context_system::instance();
+        $context = context_system::instance();
         $fs = get_file_storage();
-        $filerecord = $fs->get_area_files($context->id,'local_filedemo','file_demo',0, false, null, false);
+        $filerecord = $fs->get_area_files($context->id, 'local_filedemo', 'file_demo', 0, false, null, false);
 
         $fileurl = '';
         if ($filerecord) {
             $file = array_shift($filerecord);
             $url = \moodle_url::make_pluginfile_url($file->get_contextid(),
-            $file->get_component(), $file->get_filearea(), $file->get_itemid(), $file->get_filepath(), $file->get_filename());
-            $fileurl= $url->out();
+                $file->get_component(), $file->get_filearea(), $file->get_itemid(), $file->get_filepath(), $file->get_filename());
+            $fileurl = $url->out();
         }
 
-
-$sql = "SELECT id,contextid,component,filearea,itemid,filename
+        $sql = "SELECT id,contextid,component,filearea,itemid,filename
         FROM {files}
         WHERE COMPONENT='user'
         AND userid=:userid
@@ -71,26 +86,25 @@ $sql = "SELECT id,contextid,component,filearea,itemid,filename
         AND filearea = 'file_demo'
         ";
 
+        $files = $DB->get_records_sql($sql, ['userid' => $USER->id]);
 
-        $files = $DB->get_records_sql($sql,['userid'=>$USER->id]);
-
-        $filetable ='<table border =1>';
+        $filetable = '<table border =1>';
         $filetable .= '<th>id</th><th>contextid</th><th>component</th><th>filearea</th><th>itemid</th><th>filename</th>';
-        foreach($files as $row){
+        foreach ($files as $row) {
             $filetable .= '<tr>';
-            foreach($row as $cell){
+            foreach ($row as $cell) {
                 $filetable .= '<td>' . $cell . '</td>';
             }
             $filetable .= '</td>';
         }
         $filetable .= '</table>';
         $mform->addElement('static', 'filetable', 'filetable', $filetable);
-        $mform->addElement('static', 'file_display', 'Url',$fileurl);
-        $image = '<img src="'.$fileurl.'" height="128" width="128"></img>';
+        $mform->addElement('static', 'file_display', 'Url', $fileurl);
+        $image = '<img src="' . $fileurl . '" height="128" width="128"></img>';
         $mform->addElement('static', 'file_display', 'Image', $image);
 
         $draftitemid = 0;
-        $context=context_system::instance();
+        $context = context_system::instance();
 
         $sql = "SELECT max(itemid) maxitemid FROM {files}
         WHERE component = 'local_filedemo'
@@ -108,10 +122,10 @@ $mform = new local_filedemo_form();
 echo $OUTPUT->header();
 $mform->display();
 echo $OUTPUT->footer();
-if($data =$mform->get_data()){
+if ($data = $mform->get_data()) {
     $fileparam = ['maxbytes' => 2048, 'areamaxbytes' => 10485760, 'maxfiles' => 1];
 
-    $context=context_system::instance();
+    $context = context_system::instance();
     $draftitemid = file_get_submitted_draft_itemid('file_demo');
 
     $sql = "SELECT max(itemid) maxitemid FROM {files}
@@ -120,12 +134,12 @@ if($data =$mform->get_data()){
     ";
     $maxitem = $DB->get_field_sql($sql);
     ++$maxitem;
-        file_save_draft_area_files(
-            $draftitemid,
-            $context->id,
-            'local_filedemo',
-            'file_demo',
-            $maxitem,
-            ['subdirs' => 0, 'maxbytes' => 0, 'maxfiles' => 1]
-        );
+    file_save_draft_area_files(
+        $draftitemid,
+        $context->id,
+        'local_filedemo',
+        'file_demo',
+        $maxitem,
+        ['subdirs' => 0, 'maxbytes' => 0, 'maxfiles' => 1]
+    );
 }
